@@ -1,4 +1,9 @@
 # Include Wasm-RS
+
+[![crates.io](https://img.shields.io/crates/v/include-wasm-rs.svg)](https://crates.io/crates/include-wasm-rs)
+[![docs.rs](https://img.shields.io/docsrs/include-wasm-rs)](https://docs.rs/include-wasm-rs/latest/include_wasm_rs/)
+[![crates.io](https://img.shields.io/crates/l/include-wasm-rs.svg)](https://github.com/LucentFlux/include-wasm-rs/blob/main/LICENSE)
+
 Builds a Rust WebAssembly module at compile time and returns the bytes.
 
 # Example

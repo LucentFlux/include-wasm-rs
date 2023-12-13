@@ -2,6 +2,12 @@
 name = "include-wasm-rs"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+description = "Builds a Rust WebAssembly module at compile time and returns the bytes."
+homepage = "https://github.com/LucentFlux/include-wasm-rs"
+repository = "https://github.com/LucentFlux/include-wasm-rs"
+readme = "README.md"
+keywords = ["WebAssembly", "wasm", "utility", "macro"]
 
 [lib]
 proc-macro = true
