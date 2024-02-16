@@ -285,6 +285,31 @@ fn do_build_wasm(args: &Args) -> Result<PathBuf, String> {
         target_dir += &format!("{}_{}", key, val);
     }
 
+    // Run `cargo update` before building
+    let mut command = Command::new("cargo");
+
+    let out = command
+        .arg("update")
+        .current_dir(module_dir.clone())
+        .output();
+    match out {
+        Ok(out) => {
+            if !out.status.success() {
+                return Err(format!(
+                    "failed to update module `{}`: \n{}",
+                    module_dir.display(),
+                    String::from_utf8_lossy(&out.stderr).replace("\n", "\n\t")
+                ));
+            }
+        }
+        Err(e) => {
+            return Err(format!(
+                "failed to update module `{}`: {e}",
+                module_dir.display()
+            ))
+        }
+    }
+
     // Construct build command
     let mut command = Command::new("cargo");
 
@@ -317,8 +342,8 @@ fn do_build_wasm(args: &Args) -> Result<PathBuf, String> {
     if *release {
         args.push("--release");
     }
-    let out = command.args(args).current_dir(module_dir.clone()).output();
 
+    let out = command.args(args).current_dir(module_dir.clone()).output();
     match out {
         Ok(out) => {
             if !out.status.success() {
