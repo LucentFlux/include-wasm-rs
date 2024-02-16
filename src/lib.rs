@@ -1,6 +1,7 @@
 //! Provides a macro for including a Rust project as Wasm bytecode,
 //! by compiling it at build time of the invoking module.
 
+#![allow(stable_features)] // `mutex_unpoison` was recently stabilized (16/02/2024)
 #![feature(mutex_unpoison)]
 #![feature(proc_macro_span)]
 
