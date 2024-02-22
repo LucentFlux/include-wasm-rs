@@ -56,6 +56,17 @@ impl TargetFeatures {
     }
 }
 
+fn degroup_expr(expr: syn::Expr) -> syn::Expr {
+    match expr {
+        syn::Expr::Group(syn::ExprGroup {
+            attrs,
+            group_token: _,
+            expr,
+        }) if attrs.is_empty() => degroup_expr(*expr),
+        expr => expr,
+    }
+}
+
 #[derive(Default)]
 struct Args {
     module_dir: PathBuf,
@@ -82,7 +93,7 @@ impl syn::parse::Parse for Args {
             syn::punctuated::Punctuated::<syn::FieldValue, syn::Token![,]>::parse_terminated(
                 input,
             )?;
-        for value in dict {
+        for mut value in dict {
             if !value.attrs.is_empty() {
                 return Err(syn::Error::new(value.attrs[0].span(), "unexpected element"));
             }
@@ -90,6 +101,8 @@ impl syn::parse::Parse for Args {
                 syn::Member::Named(name) => name.to_string(),
                 syn::Member::Unnamed(unnamed) => unnamed.index.to_string(),
             };
+
+            value.expr = degroup_expr(value.expr);
 
             // Parse value depending on key
             match name.as_str() {
@@ -100,7 +113,12 @@ impl syn::parse::Parse for Args {
                             attrs,
                             lit: syn::Lit::Str(path),
                         }) if attrs.is_empty() => PathBuf::from(path.value()),
-                        _ => return Err(syn::Error::new(value.expr.span(), "expected string")),
+                        _ => {
+                            return Err(syn::Error::new(
+                                value.expr.span(),
+                                format!("expected literal string, got {:?}", value.expr),
+                            ))
+                        }
                     };
                 }
                 "release" => {
