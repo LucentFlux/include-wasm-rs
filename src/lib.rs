@@ -4,6 +4,7 @@
 #![allow(stable_features)] // `mutex_unpoison` was recently stabilized (16/02/2024)
 #![feature(mutex_unpoison)]
 #![feature(proc_macro_span)]
+#![feature(track_path)]
 
 use std::{fmt::Display, path::PathBuf, process::Command, sync::Mutex};
 
@@ -498,6 +499,10 @@ pub fn build_wasm(args: TokenStream) -> TokenStream {
             let bytes_path = bytes_path.to_string_lossy().to_string();
             // Register rebuild on files changed
             let module_paths = all_module_files(args.module_dir);
+
+            for path in &module_paths {
+                proc_macro::tracked_path::path(path);
+            }
 
             quote! {
                 {
