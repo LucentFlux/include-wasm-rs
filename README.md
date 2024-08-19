@@ -44,3 +44,7 @@ let module = build_wasm!{
     release: true
 };
 ```
+
+# Features
+
+If you're on nightly, the `proc_macro_span` feature will enable better call site location resolution.

@@ -1,16 +1,53 @@
 //! Provides a macro for including a Rust project as Wasm bytecode,
 //! by compiling it at build time of the invoking module.
 
-#![allow(stable_features)] // `mutex_unpoison` was recently stabilized (16/02/2024)
-#![feature(mutex_unpoison)]
-#![feature(proc_macro_span)]
-#![feature(track_path)]
+#![cfg_attr(feature = "proc_macro_span", feature(proc_macro_span))]
 
 use std::{fmt::Display, path::PathBuf, process::Command, sync::Mutex};
 
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{parse::ParseStream, parse_macro_input, spanned::Spanned};
+
+// Hacky polyfill for `proc_macro::Span::source_file`
+#[cfg(not(feature = "proc_macro_span"))]
+fn find_me(root: &str, pattern: &str) -> PathBuf {
+    let mut options = Vec::new();
+
+    for path in glob::glob(&std::path::Path::new(root).join("**/*.rs").to_string_lossy())
+        .unwrap()
+        .flatten()
+    {
+        if let Ok(mut f) = std::fs::File::open(&path) {
+            let mut contents = String::new();
+            std::io::Read::read_to_string(&mut f, &mut contents).ok();
+            if contents.contains(pattern) {
+                options.push(path.to_owned());
+            }
+        }
+    }
+
+    match options.as_slice() {
+        [] => panic!(
+            "could not find invocation point - maybe it was in a macro? \
+            This won't be an issue once `proc_macro_span` is stabalized, \
+            but until then each instance of the `build_wasm` must be present \
+            in the source text, and each must have a unique argument."
+        ),
+        [v] => v.clone(),
+        _ => panic!(
+            "found more than one contender for macro invocation location. \
+            This won't be an issue once `proc_macro_span` is stabalized, \
+            but until then each instance of the `build_wasm` must be present \
+            in the source text, and each must have a unique argument. \
+            found locations: {:?}",
+            options
+                .into_iter()
+                .map(|path| format!("`{}`", path.display()))
+                .collect::<Vec<String>>()
+        ),
+    }
+}
 
 #[derive(Default)]
 struct TargetFeatures {
@@ -478,6 +515,16 @@ fn all_module_files(path: PathBuf) -> Vec<String> {
 /// ```
 #[proc_macro]
 pub fn build_wasm(args: TokenStream) -> TokenStream {
+    // Parse args
+    let mut args = parse_macro_input!(args as Args);
+
+    #[cfg(not(feature = "proc_macro_span"))]
+    let invocation_file = {
+        let root =
+            std::env::var("CARGO_MANIFEST_DIR").expect("proc macros should be run using cargo");
+        find_me(&root, &format!("\"{}\"", args.module_dir.to_string_lossy()))
+    };
+    #[cfg(feature = "proc_macro_span")]
     let invocation_file = proc_macro::Span::call_site().source_file().path();
     let invocation_file = invocation_file
         .parent()
@@ -485,9 +532,6 @@ pub fn build_wasm(args: TokenStream) -> TokenStream {
         .to_path_buf()
         .canonicalize()
         .unwrap();
-
-    // Parse args
-    let mut args = parse_macro_input!(args as Args);
     args.module_dir = invocation_file.join(args.module_dir);
 
     // Build
@@ -499,10 +543,6 @@ pub fn build_wasm(args: TokenStream) -> TokenStream {
             let bytes_path = bytes_path.to_string_lossy().to_string();
             // Register rebuild on files changed
             let module_paths = all_module_files(args.module_dir);
-
-            for path in &module_paths {
-                proc_macro::tracked_path::path(path);
-            }
 
             quote! {
                 {

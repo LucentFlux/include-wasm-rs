@@ -19,3 +19,6 @@ proc-macro2 = "1.0"
 
 # To search for the output module
 glob = "0.3"
+
+[features]
+proc_macro_span = []
