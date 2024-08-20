@@ -92,7 +92,7 @@ impl TargetFeatures {
             }
         }
 
-        return Ok(res);
+        Ok(res)
     }
 }
 
@@ -202,11 +202,11 @@ impl syn::parse::Parse for Args {
                         }) if attrs.is_empty()
                             && segments.len() == 1
                             && segments[0].arguments.is_empty()
-                            && segments[0].ident.to_string() == "Env" =>
+                            && segments[0].ident == "Env" =>
                         {
                             for field in fields {
                                 let span = field.span();
-                                if !field.attrs.is_empty() || !field.colon_token.is_some() {
+                                if !field.attrs.is_empty() || field.colon_token.is_none() {
                                     return Err(syn::Error::new(span, "expected key value pair"));
                                 }
 
@@ -249,7 +249,7 @@ impl syn::parse::Parse for Args {
                                             _ => {
                                                 return Err(syn::Error::new(
                                                     lit.span(),
-                                                    format!("expected a string, int, float or bool, found literal `{}`", lit.into_token_stream().to_string()),
+                                                    format!("expected a string, int, float or bool, found literal `{}`", lit.into_token_stream()),
                                                 ))
                                             }
                                         }
@@ -257,7 +257,7 @@ impl syn::parse::Parse for Args {
                                     _ => {
                                         return Err(syn::Error::new(
                                             field.expr.span(),
-                                            format!("expected a string, int, float or bool, found `{}`", field.expr.into_token_stream().to_string()),
+                                            format!("expected a string, int, float or bool, found `{}`", field.expr.into_token_stream()),
                                         ))
                                     }
                                 };
@@ -282,7 +282,7 @@ impl syn::parse::Parse for Args {
             }
         }
 
-        return Ok(res);
+        Ok(res)
     }
 }
 
@@ -316,7 +316,7 @@ fn do_build_wasm(args: &Args) -> Result<PathBuf, String> {
 
     // Acquire global lock
     let mut lock = GLOBAL_LOCK.lock();
-    while let Err(_) = lock {
+    while lock.is_err() {
         GLOBAL_LOCK.clear_poison();
         lock = GLOBAL_LOCK.lock();
     }
@@ -357,7 +357,7 @@ fn do_build_wasm(args: &Args) -> Result<PathBuf, String> {
                 return Err(format!(
                     "failed to update module `{}`: \n{}",
                     module_dir.display(),
-                    String::from_utf8_lossy(&out.stderr).replace("\n", "\n\t")
+                    String::from_utf8_lossy(&out.stderr).replace('\n', "\n\t")
                 ));
             }
         }
@@ -373,14 +373,14 @@ fn do_build_wasm(args: &Args) -> Result<PathBuf, String> {
     let mut command = Command::new("cargo");
 
     // Treat `RUSTFLAGS` as special in env vars
-    const RUSTFLAGS: &'static str = "RUSTFLAGS";
+    const RUSTFLAGS: &str = "RUSTFLAGS";
     let mut rustflags_value = format!("--cfg=web_sys_unstable_apis -C target-feature={features}");
     command.env(RUSTFLAGS, &rustflags_value);
 
-    for (key, val) in env_vars.into_iter() {
+    for (key, val) in env_vars.iter() {
         if key == RUSTFLAGS {
             rustflags_value += " ";
-            rustflags_value += &val;
+            rustflags_value += val;
             command.env(RUSTFLAGS, &rustflags_value);
         } else {
             command.env(key, val);
@@ -402,20 +402,24 @@ fn do_build_wasm(args: &Args) -> Result<PathBuf, String> {
         args.push("--release");
     }
 
-    let out = command.args(args).current_dir(module_dir.clone()).output();
+    let command = command.args(args).current_dir(module_dir.clone());
+    let command_debug = format!("{command:?}");
+    let out = command.output();
     match out {
         Ok(out) => {
             if !out.status.success() {
                 return Err(format!(
-                    "failed to build module `{}`: \n{}",
+                    "failed to build module `{}`: \nrunning `{}`\n{}",
                     module_dir.display(),
-                    String::from_utf8_lossy(&out.stderr).replace("\n", "\n\t")
+                    command_debug,
+                    String::from_utf8_lossy(&out.stderr).replace('\n', "\n\t")
                 ));
             }
         }
         Err(e) => {
             return Err(format!(
-                "failed to build module `{}`: {e}",
+                "failed to build module `{}`: \nrunning `{}`\n{e}",
+                command_debug,
                 module_dir.display()
             ))
         }
@@ -430,8 +434,7 @@ fn do_build_wasm(args: &Args) -> Result<PathBuf, String> {
     }
     .join("*.wasm");
     let mut glob_paths = glob::glob(
-        &glob
-            .as_os_str()
+        glob.as_os_str()
             .to_str()
             .expect("output path should be unicode compliant"),
     )
@@ -459,13 +462,12 @@ fn do_build_wasm(args: &Args) -> Result<PathBuf, String> {
 
     drop(lock);
 
-    return Ok(output);
+    Ok(output)
 }
 
 fn all_module_files(path: PathBuf) -> Vec<String> {
     let glob_paths = glob::glob(
-        &path
-            .as_os_str()
+        path.as_os_str()
             .to_str()
             .expect("output path should be unicode compliant"),
     )

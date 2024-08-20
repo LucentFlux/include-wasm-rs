@@ -1,6 +1,6 @@
 [package]
 name = "include-wasm-rs"
-version = "0.1.3"
+version = "0.2.0"
 edition = "2021"
 license = "MIT"
 description = "Builds a Rust WebAssembly module at compile time and returns the bytes."
