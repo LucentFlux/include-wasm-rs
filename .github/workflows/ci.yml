@@ -12,10 +12,23 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
           
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: clippy
+          
       - name: Install nighly toolchain
         uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
+          components: clippy
+          
+      - name: Install wasm stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: wasm32-unknown-unknown
           components: clippy
           
       - name: Install wasm toolchain
@@ -23,30 +36,30 @@ jobs:
         with:
           toolchain: nightly
           target: wasm32-unknown-unknown
-          components: rust-src,clippy
+          components: rust-src
           
       - uses: Swatinem/rust-cache@v2
 
       - name: Check native
-        run: cargo check --all-targets
+        run: cargo +stable check --all-targets
 
       - name: Check nightly native
         run: cargo +nightly check --all-targets --all-features
 
       - name: Check wasm
-        run: cargo check --all-targets --target wasm32-unknown-unknown
+        run: cargo +stable check --all-targets --target wasm32-unknown-unknown
 
       - name: Check nightly wasm
         run: cargo +nightly check --all-targets --target wasm32-unknown-unknown --all-features
 
       - name: Clippy native
-        run: cargo clippy --all-targets
+        run: cargo +stable clippy --all-targets
 
       - name: Clippy nightly native
         run: cargo +nightly clippy --all-targets --all-features
 
       - name: Clippy wasm
-        run: cargo clippy --all-targets --target wasm32-unknown-unknown
+        run: cargo +stable clippy --all-targets --target wasm32-unknown-unknown
 
       - name: Clippy nightly wasm
         run: cargo +nightly clippy --all-targets --target wasm32-unknown-unknown  --all-features

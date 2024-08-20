@@ -30,17 +30,19 @@ fn find_me(root: &str, pattern: &str) -> PathBuf {
     match options.as_slice() {
         [] => panic!(
             "could not find invocation point - maybe it was in a macro? \
-            This won't be an issue once `proc_macro_span` is stabalized, \
+            If you are on nightly (or in the future), enable the `proc_macro_span` \
+            feature on `include-wasm-rs` to use advanced call site resolution, \
             but until then each instance of the `build_wasm` must be present \
             in the source text, and each must have a unique argument."
         ),
         [v] => v.clone(),
         _ => panic!(
             "found more than one contender for macro invocation location. \
-            This won't be an issue once `proc_macro_span` is stabalized, \
+            If you are on nightly (or in the future), enable the `proc_macro_span` \
+            feature on `include-wasm-rs` to use advanced call site resolution, \
             but until then each instance of the `build_wasm` must be present \
             in the source text, and each must have a unique argument. \
-            found locations: {:?}",
+            Found potential invocation locations: {:?}",
             options
                 .into_iter()
                 .map(|path| format!("`{}`", path.display()))
